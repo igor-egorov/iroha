@@ -67,6 +67,9 @@ namespace iroha {
 
       boost::optional<Bytes> get(Identifier id) const override;
 
+      /// @return true - if removed
+      bool remove(Identifier id) override;
+
       std::string directory() const override;
 
       Identifier last_id() const override;

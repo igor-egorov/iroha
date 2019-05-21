@@ -42,6 +42,8 @@ namespace iroha {
                      std::shared_ptr<shared_model::interface::Block>> blocks,
                  MutableStoragePredicate predicate) override;
 
+      void commit();
+
       shared_model::interface::types::HeightType getTopBlockHeight() const;
 
       ~MutableStorageImpl() override;

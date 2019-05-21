@@ -111,6 +111,25 @@ boost::optional<FlatFile::Bytes> FlatFile::get(Identifier id) const {
   return buf;
 }
 
+bool FlatFile::remove(Identifier id) {
+  auto found = available_blocks_.find(id);
+  if (available_blocks_.end() == found) {
+    log_->warn(
+        "The block requested for removal ({}) is not indexed and cannot be "
+        "removed",
+        id);
+    return false;
+  }
+
+  const auto filename =
+      boost::filesystem::path(dump_dir_) / FlatFile::id_to_name(id);
+  bool removed = iroha::remove_file(filename.string(), log_);
+  if (removed) {
+    available_blocks_.erase(found);
+  }
+  return removed;
+}
+
 std::string FlatFile::directory() const {
   return dump_dir_;
 }

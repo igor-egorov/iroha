@@ -40,6 +40,13 @@ namespace iroha {
       virtual boost::optional<Bytes> get(Identifier id) const = 0;
 
       /**
+       * Remove a record from the storage
+       * @param id - reference key
+       * @return true - if removed
+       */
+      virtual bool remove(Identifier id) = 0;
+
+      /**
        * @return folder of storage
        */
       virtual std::string directory() const = 0;

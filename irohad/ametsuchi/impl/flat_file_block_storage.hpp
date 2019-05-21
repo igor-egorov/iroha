@@ -34,12 +34,15 @@ namespace iroha {
 
       void clear() override;
 
+      void commit() override;
+
       void forEach(FunctionType function) const override;
 
      private:
       std::unique_ptr<FlatFile> flat_file_storage_;
       std::shared_ptr<shared_model::interface::BlockJsonConverter>
           json_converter_;
+      FlatFile::Identifier height_;
       logger::LoggerPtr log_;
     };
   }  // namespace ametsuchi

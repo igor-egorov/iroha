@@ -19,11 +19,22 @@ FlatFileBlockStorage::FlatFileBlockStorage(
     logger::LoggerPtr log)
     : flat_file_storage_(std::move(flat_file)),
       json_converter_(std::move(json_converter)),
-      log_(std::move(log)) {}
+      height_(flat_file_storage_->last_id()),
+      log_(std::move(log)) {
+}
 
 FlatFileBlockStorage::~FlatFileBlockStorage() {
-  log_->info("Remove {} temp directory", flat_file_storage_->directory());
-  boost::filesystem::remove_all(flat_file_storage_->directory());
+  if (0 == height_) {
+    log_->debug("Remove {} temp directory", flat_file_storage_->directory());
+    boost::filesystem::remove_all(flat_file_storage_->directory());
+  } else {
+    for (FlatFile::Identifier uncommitted = flat_file_storage_->last_id();
+         uncommitted > height_;
+         --uncommitted) {
+      log_->debug("Remove uncommitted block {}", uncommitted);
+      flat_file_storage_->remove(uncommitted);
+    }
+  }
 }
 
 bool FlatFileBlockStorage::insert(
@@ -68,6 +79,10 @@ size_t FlatFileBlockStorage::size() const {
 
 void FlatFileBlockStorage::clear() {
   flat_file_storage_->dropAll();
+}
+
+void FlatFileBlockStorage::commit() {
+  height_ = flat_file_storage_->last_id();
 }
 
 void FlatFileBlockStorage::forEach(

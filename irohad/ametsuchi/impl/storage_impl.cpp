@@ -693,7 +693,7 @@ namespace iroha {
 
       try {
         *(storage->sql_) << "COMMIT";
-        storage->committed = true;
+       storage->commit();
 
         storage->block_storage_->forEach(
             [this](const auto &block) { this->storeBlock(block); });

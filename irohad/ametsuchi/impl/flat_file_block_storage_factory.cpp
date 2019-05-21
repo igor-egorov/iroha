@@ -10,7 +10,7 @@
 using namespace iroha::ametsuchi;
 
 FlatFileBlockStorageFactory::FlatFileBlockStorageFactory(
-    std::function<std::string()> path_provider,
+    std::function<std::string()> path_provider, //-> existing blockstore from storage impl
     std::shared_ptr<shared_model::interface::BlockJsonConverter>
         json_block_converter,
     logger::LoggerManagerTreePtr log_manager)

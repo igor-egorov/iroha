@@ -28,6 +28,8 @@ namespace iroha {
 
       void clear() override;
 
+      void commit() override;
+
       void forEach(FunctionType function) const override;
 
      private:

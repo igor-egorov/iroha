@@ -23,5 +23,13 @@ namespace iroha {
    */
   void remove_dir_contents(const std::string &dir,
                            const logger::LoggerPtr &log);
+
+  /**
+   * Remove specified file
+   * @param path - path to the file to be removed
+   * @param log - a log for local messages
+   * @return true - if removed
+   */
+  bool remove_file(const std::string &path, const logger::LoggerPtr &log);
 }  // namespace iroha
 #endif  // IROHA_FILES_HPP

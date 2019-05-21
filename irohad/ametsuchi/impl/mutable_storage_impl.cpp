@@ -126,6 +126,11 @@ namespace iroha {
       });
     }
 
+    void MutableStorageImpl::commit() {
+      block_storage_->commit();
+      committed = true;
+    }
+
     shared_model::interface::types::HeightType
     MutableStorageImpl::getTopBlockHeight() const {
       return top_height_;
