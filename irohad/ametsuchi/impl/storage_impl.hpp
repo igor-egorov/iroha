@@ -27,14 +27,7 @@
 namespace iroha {
   namespace ametsuchi {
 
-    class FlatFile;
     class FailoverCallbackFactory;
-
-    struct ConnectionContext {
-      explicit ConnectionContext(std::unique_ptr<KeyValueStorage> block_store);
-
-      std::unique_ptr<KeyValueStorage> block_store;
-    };
 
     class StorageImpl : public Storage {
      protected:
@@ -42,16 +35,13 @@ namespace iroha {
           const std::string &dbname,
           const std::string &options_str_without_dbname);
 
-      static expected::Result<ConnectionContext, std::string> initConnections(
-          std::string block_store_dir, logger::LoggerPtr log);
-
       static expected::Result<std::shared_ptr<soci::connection_pool>,
                               std::string>
       initPostgresConnection(std::string &options_str, size_t pool_size);
 
      public:
       static expected::Result<std::shared_ptr<StorageImpl>, std::string> create(
-          std::string block_store_dir,
+          std::unique_ptr<KeyValueStorage> block_store,
           std::string postgres_connection,
           std::shared_ptr<shared_model::interface::CommonObjectsFactory>
               factory,
@@ -119,8 +109,7 @@ namespace iroha {
       ~StorageImpl() override;
 
      protected:
-      StorageImpl(std::string block_store_dir,
-                  PostgresOptions postgres_options,
+      StorageImpl(PostgresOptions postgres_options,
                   std::unique_ptr<KeyValueStorage> block_store,
                   std::shared_ptr<soci::connection_pool> connection,
                   std::shared_ptr<shared_model::interface::CommonObjectsFactory>
@@ -135,11 +124,6 @@ namespace iroha {
                   size_t pool_size,
                   bool enable_prepared_blocks,
                   logger::LoggerManagerTreePtr log_manager);
-
-      /**
-       * Folder with raw blocks
-       */
-      const std::string block_store_dir_;
 
       // db info
       const PostgresOptions postgres_options_;

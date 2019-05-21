@@ -7,6 +7,7 @@
 
 #include <boost/filesystem.hpp>
 
+#include "ametsuchi/impl/flat_file/flat_file.hpp"
 #include "ametsuchi/impl/flat_file_block_storage_factory.hpp"
 #include "ametsuchi/impl/k_times_reconnection_strategy.hpp"
 #include "ametsuchi/impl/storage_impl.hpp"
@@ -195,8 +196,16 @@ Irohad::RunResult Irohad::initStorage() {
       block_converter,
       log_manager_);
 
+  auto block_store = FlatFile::create(
+      block_store_dir_, log_manager_->getChild("FlatFile")->getLogger());
+  if (not block_store) {
+    return expected::makeError(
+        (boost::format("Cannot create block store in %s") % block_store_dir_)
+            .str());
+  }
+
   return StorageImpl::create(
-             block_store_dir_,
+             std::move(*block_store),
              pg_conn_,
              common_objects_factory_,
              std::move(block_converter),

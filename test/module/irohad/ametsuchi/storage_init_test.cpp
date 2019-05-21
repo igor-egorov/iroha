@@ -11,6 +11,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
+#include "ametsuchi/impl/flat_file/flat_file.hpp"
 #include "ametsuchi/impl/in_memory_block_storage_factory.hpp"
 #include "ametsuchi/impl/k_times_reconnection_strategy.hpp"
 #include "backend/protobuf/common_objects/proto_common_objects_factory.hpp"
@@ -36,6 +37,8 @@ class StorageInitTest : public ::testing::Test {
   std::string block_store_path = (boost::filesystem::temp_directory_path()
                                   / boost::filesystem::unique_path())
                                      .string();
+
+  std::unique_ptr<KeyValueStorage> block_store_;
 
   // generate random valid dbname
   std::string dbname_ = "d"
@@ -68,6 +71,10 @@ class StorageInitTest : public ::testing::Test {
         << "Temporary block store " << block_store_path
         << " directory already exists";
 
+    block_store_ = *FlatFile::create(
+        block_store_path,
+        getTestLoggerManager()->getChild("FlatFile")->getLogger());
+
     reconnection_strategy_factory_ =
         std::make_unique<iroha::ametsuchi::KTimesReconnectionStrategyFactory>(
             0);
@@ -91,7 +98,7 @@ class StorageInitTest : public ::testing::Test {
  */
 TEST_F(StorageInitTest, CreateStorageWithDatabase) {
   std::shared_ptr<StorageImpl> storage;
-  StorageImpl::create(block_store_path,
+  StorageImpl::create(std::move(block_store_),
                       pgopt_,
                       factory,
                       converter,
@@ -122,7 +129,7 @@ TEST_F(StorageInitTest, CreateStorageWithDatabase) {
 TEST_F(StorageInitTest, CreateStorageWithInvalidPgOpt) {
   std::string pg_opt =
       "host=localhost port=5432 users=nonexistinguser dbname=test";
-  StorageImpl::create(block_store_path,
+  StorageImpl::create(std::move(block_store_),
                       pg_opt,
                       factory,
                       converter,

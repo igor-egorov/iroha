@@ -12,7 +12,6 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
 #include <boost/range/algorithm/replace_if.hpp>
-#include "ametsuchi/impl/flat_file/flat_file.hpp"
 #include "ametsuchi/impl/mutable_storage_impl.hpp"
 #include "ametsuchi/impl/peer_query_wsv.hpp"
 #include "ametsuchi/impl/postgres_block_index.hpp"
@@ -250,12 +249,7 @@ namespace iroha {
     const char *kPsqlBroken = "Connection to PostgreSQL broken: %s";
     const char *kTmpWsv = "TemporaryWsv";
 
-    ConnectionContext::ConnectionContext(
-        std::unique_ptr<KeyValueStorage> block_store)
-        : block_store(std::move(block_store)) {}
-
     StorageImpl::StorageImpl(
-        std::string block_store_dir,
         PostgresOptions postgres_options,
         std::unique_ptr<KeyValueStorage> block_store,
         std::shared_ptr<soci::connection_pool> connection,
@@ -269,8 +263,7 @@ namespace iroha {
         size_t pool_size,
         bool enable_prepared_blocks,
         logger::LoggerManagerTreePtr log_manager)
-        : block_store_dir_(std::move(block_store_dir)),
-          postgres_options_(std::move(postgres_options)),
+        : postgres_options_(std::move(postgres_options)),
           block_store_(std::move(block_store)),
           connection_(std::move(connection)),
           factory_(std::move(factory)),
@@ -590,22 +583,6 @@ namespace iroha {
       }
     }
 
-    expected::Result<ConnectionContext, std::string>
-    StorageImpl::initConnections(std::string block_store_dir,
-                                 logger::LoggerPtr log) {
-      log->info("Start storage creation");
-
-      auto block_store = FlatFile::create(block_store_dir, log);
-      if (not block_store) {
-        return expected::makeError(
-            (boost::format("Cannot create block store in %s") % block_store_dir)
-                .str());
-      }
-      log->info("block store created");
-
-      return expected::makeValue(ConnectionContext(std::move(*block_store)));
-    }
-
     expected::Result<std::shared_ptr<soci::connection_pool>, std::string>
     StorageImpl::initPostgresConnection(std::string &options_str,
                                         size_t pool_size) {
@@ -624,7 +601,7 @@ namespace iroha {
 
     expected::Result<std::shared_ptr<StorageImpl>, std::string>
     StorageImpl::create(
-        std::string block_store_dir,
+        std::unique_ptr<KeyValueStorage> block_store,
         std::string postgres_options,
         std::shared_ptr<shared_model::interface::CommonObjectsFactory> factory,
         std::shared_ptr<shared_model::interface::BlockJsonConverter> converter,
@@ -650,40 +627,31 @@ namespace iroha {
         return expected::makeError(string_res.value());
       }
 
-      auto ctx_result =
-          initConnections(block_store_dir, log_manager->getLogger());
       auto db_result = initPostgresConnection(postgres_options, pool_size);
       expected::Result<std::shared_ptr<StorageImpl>, std::string> storage;
-      std::move(ctx_result)
-          .match(
-              [&](auto &&ctx) {
-                std::move(db_result).match(
-                    [&](auto &&connection) {
-                      soci::session sql(*connection.value);
-                      bool enable_prepared_transactions =
-                          preparedTransactionsAvailable(sql);
-                      try {
-                        storage = expected::makeValue(
-                            std::shared_ptr<StorageImpl>(new StorageImpl(
-                                block_store_dir,
-                                options,
-                                std::move(ctx.value.block_store),
-                                std::move(connection.value),
-                                factory,
-                                converter,
-                                perm_converter,
-                                std::move(block_storage_factory),
-                                std::move(reconnection_strategy_factory),
-                                pool_size,
-                                enable_prepared_transactions,
-                                std::move(log_manager))));
-                      } catch (const std::exception &e) {
-                        storage = expected::makeError(e.what());
-                      }
-                    },
-                    [&](const auto &error) { storage = error; });
-              },
-              [&](const auto &error) { storage = error; });
+      std::move(db_result).match(
+          [&](auto &&connection) {
+            soci::session sql(*connection.value);
+            bool enable_prepared_transactions =
+                preparedTransactionsAvailable(sql);
+            try {
+              storage = expected::makeValue(std::shared_ptr<StorageImpl>(
+                  new StorageImpl(options,
+                                  std::move(block_store),
+                                  std::move(connection.value),
+                                  factory,
+                                  converter,
+                                  perm_converter,
+                                  std::move(block_storage_factory),
+                                  std::move(reconnection_strategy_factory),
+                                  pool_size,
+                                  enable_prepared_transactions,
+                                  std::move(log_manager))));
+            } catch (const std::exception &e) {
+              storage = expected::makeError(e.what());
+            }
+          },
+          [&](const auto &error) { storage = error; });
       return storage;
     }
 
@@ -693,7 +661,7 @@ namespace iroha {
 
       try {
         *(storage->sql_) << "COMMIT";
-       storage->commit();
+        storage->commit();
 
         storage->block_storage_->forEach(
             [this](const auto &block) { this->storeBlock(block); });

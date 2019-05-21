@@ -12,6 +12,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
+#include "ametsuchi/impl/flat_file/flat_file.hpp"
 #include "ametsuchi/impl/in_memory_block_storage_factory.hpp"
 #include "ametsuchi/impl/k_times_reconnection_strategy.hpp"
 #include "ametsuchi/impl/storage_impl.hpp"
@@ -50,7 +51,10 @@ namespace iroha {
             std::make_unique<InMemoryBlockStorageFactory>();
         auto reconnection_strategy_factory = std::make_unique<
             iroha::ametsuchi::KTimesReconnectionStrategyFactory>(0);
-        StorageImpl::create(block_store_path,
+        auto block_store = FlatFile::create(
+            block_store_path,
+            getTestLoggerManager()->getChild("FlatFile")->getLogger());
+        StorageImpl::create(std::move(*block_store),
                             pgopt_,
                             factory,
                             converter,
