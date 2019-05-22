@@ -14,26 +14,20 @@
 using namespace iroha::ametsuchi;
 
 FlatFileBlockStorage::FlatFileBlockStorage(
-    std::unique_ptr<FlatFile> flat_file,
+    std::shared_ptr<KeyValueStorage> block_store,
     std::shared_ptr<shared_model::interface::BlockJsonConverter> json_converter,
     logger::LoggerPtr log)
-    : flat_file_storage_(std::move(flat_file)),
+    : block_store_(std::move(block_store)),
       json_converter_(std::move(json_converter)),
-      height_(flat_file_storage_->last_id()),
-      log_(std::move(log)) {
-}
+      height_(block_store_->last_id()),
+      log_(std::move(log)) {}
 
 FlatFileBlockStorage::~FlatFileBlockStorage() {
-  if (0 == height_) {
-    log_->debug("Remove {} temp directory", flat_file_storage_->directory());
-    boost::filesystem::remove_all(flat_file_storage_->directory());
-  } else {
-    for (FlatFile::Identifier uncommitted = flat_file_storage_->last_id();
-         uncommitted > height_;
-         --uncommitted) {
-      log_->debug("Remove uncommitted block {}", uncommitted);
-      flat_file_storage_->remove(uncommitted);
-    }
+  for (FlatFile::Identifier uncommitted = block_store_->last_id();
+       uncommitted > height_;
+       --uncommitted) {
+    log_->debug("Remove uncommitted block {}", uncommitted);
+    block_store_->remove(uncommitted);
   }
 }
 
@@ -41,8 +35,8 @@ bool FlatFileBlockStorage::insert(
     std::shared_ptr<const shared_model::interface::Block> block) {
   return json_converter_->serialize(*block).match(
       [&](const auto &block_json) {
-        return flat_file_storage_->add(block->height(),
-                                       stringToBytes(block_json.value));
+        return block_store_->add(block->height(),
+                                 stringToBytes(block_json.value));
       },
       [this](const auto &error) {
         log_->warn("Error while block serialization: {}", error.error);
@@ -53,7 +47,7 @@ bool FlatFileBlockStorage::insert(
 boost::optional<std::shared_ptr<const shared_model::interface::Block>>
 FlatFileBlockStorage::fetch(
     shared_model::interface::types::HeightType height) const {
-  auto storage_block = flat_file_storage_->get(height);
+  auto storage_block = block_store_->get(height);
   if (not storage_block) {
     return boost::none;
   }
@@ -74,22 +68,19 @@ FlatFileBlockStorage::fetch(
 }
 
 size_t FlatFileBlockStorage::size() const {
-  return flat_file_storage_->blockIdentifiers().size();
+  return block_store_->last_id() - height_;
 }
 
 void FlatFileBlockStorage::clear() {
-  flat_file_storage_->dropAll();
+  block_store_->dropAll();
 }
 
-void FlatFileBlockStorage::commit() {
-  height_ = flat_file_storage_->last_id();
-}
-
-void FlatFileBlockStorage::forEach(
-    iroha::ametsuchi::BlockStorage::FunctionType function) const {
-  for (auto block_id : flat_file_storage_->blockIdentifiers()) {
+void FlatFileBlockStorage::commit(FunctionType function) {
+  auto last_id = block_store_->last_id();
+  for (auto block_id = std::max(1u, height_); block_id <= last_id; ++block_id) {
     auto block = fetch(block_id);
     BOOST_ASSERT(block);
     function(*block);
   }
+  height_ = last_id;
 }

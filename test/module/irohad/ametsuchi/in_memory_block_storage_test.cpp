@@ -104,19 +104,21 @@ TEST_F(InMemoryBlockStorageTest, Clear) {
 
 /**
  * @given initialized block storage, single block with height_ inserted
- * @when forEach is called
- * @then block with height_ is visited, lambda is invoked once
+ * @when commit is called
+ * @then block with height_ is visited, lambda is invoked once, storage is empty
+ * after the commit
  */
 TEST_F(InMemoryBlockStorageTest, ForEach) {
   ASSERT_TRUE(block_storage_.insert(block_));
 
   size_t count = 0;
 
-  block_storage_.forEach([this, &count](const auto &block) {
+  block_storage_.commit([this, &count](const auto &block) {
     ++count;
     ASSERT_EQ(height_, block->height());
     ASSERT_EQ(block_, block);
   });
 
   ASSERT_EQ(1, count);
+  ASSERT_EQ(0, block_storage_.size());
 }

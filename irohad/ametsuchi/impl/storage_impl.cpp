@@ -251,7 +251,7 @@ namespace iroha {
 
     StorageImpl::StorageImpl(
         PostgresOptions postgres_options,
-        std::unique_ptr<KeyValueStorage> block_store,
+        std::shared_ptr<KeyValueStorage> block_store,
         std::shared_ptr<soci::connection_pool> connection,
         std::shared_ptr<shared_model::interface::CommonObjectsFactory> factory,
         std::shared_ptr<shared_model::interface::BlockJsonConverter> converter,
@@ -446,15 +446,17 @@ namespace iroha {
       if (not block_query) {
         return expected::makeError("Cannot create BlockQuery");
       }
-      block_query->getBlock(block_query->getTopBlockHeight())
-          .match(
-              [&hash, &height](const auto &v) {
-                hash = v.value->hash();
-                height = v.value->height();
-              },
-              [this](const auto &e) {
-                log_->error("Could not get top block: {}", e.error);
-              });
+      auto top_height = block_query->getTopBlockHeight();
+      if (0 != top_height) {
+        block_query->getBlock(top_height).match(
+            [&hash, &height](const auto &v) {
+              hash = v.value->hash();
+              height = v.value->height();
+            },
+            [this](const auto &e) {
+              log_->error("Could not get top block: {}", e.error);
+            });
+      }
       return expected::makeValue<std::unique_ptr<MutableStorage>>(
           std::make_unique<MutableStorageImpl>(
               hash,
@@ -601,7 +603,7 @@ namespace iroha {
 
     expected::Result<std::shared_ptr<StorageImpl>, std::string>
     StorageImpl::create(
-        std::unique_ptr<KeyValueStorage> block_store,
+        std::shared_ptr<KeyValueStorage> block_store,
         std::string postgres_options,
         std::shared_ptr<shared_model::interface::CommonObjectsFactory> factory,
         std::shared_ptr<shared_model::interface::BlockJsonConverter> converter,
@@ -661,10 +663,9 @@ namespace iroha {
 
       try {
         *(storage->sql_) << "COMMIT";
-        storage->commit();
-
-        storage->block_storage_->forEach(
-            [this](const auto &block) { this->storeBlock(block); });
+        storage->commit([this](const auto &block) {
+          notifier_.get_subscriber().on_next(block);
+        });
 
         return PostgresWsvQuery(*(storage->sql_),
                                 factory_,

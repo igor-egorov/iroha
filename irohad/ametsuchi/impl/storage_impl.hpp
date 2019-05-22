@@ -41,7 +41,7 @@ namespace iroha {
 
      public:
       static expected::Result<std::shared_ptr<StorageImpl>, std::string> create(
-          std::unique_ptr<KeyValueStorage> block_store,
+          std::shared_ptr<KeyValueStorage> block_store,
           std::string postgres_connection,
           std::shared_ptr<shared_model::interface::CommonObjectsFactory>
               factory,
@@ -110,7 +110,7 @@ namespace iroha {
 
      protected:
       StorageImpl(PostgresOptions postgres_options,
-                  std::unique_ptr<KeyValueStorage> block_store,
+                  std::shared_ptr<KeyValueStorage> block_store,
                   std::shared_ptr<soci::connection_pool> connection,
                   std::shared_ptr<shared_model::interface::CommonObjectsFactory>
                       factory,
@@ -140,7 +140,7 @@ namespace iroha {
       bool storeBlock(
           std::shared_ptr<const shared_model::interface::Block> block);
 
-      std::unique_ptr<KeyValueStorage> block_store_;
+      std::shared_ptr<KeyValueStorage> block_store_;
 
       std::shared_ptr<soci::connection_pool> connection_;
 

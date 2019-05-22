@@ -50,13 +50,8 @@ namespace iroha {
       using FunctionType = std::function<void(
           std::shared_ptr<const shared_model::interface::Block>)>;
 
-      /// TODO descr
-      virtual void commit() = 0;
-
-      /**
-       * Iterates through all the stored blocks
-       */
-      virtual void forEach(FunctionType function) const = 0;
+      /// TODO descr calls function for each committed block
+      virtual void commit(FunctionType function) = 0;
 
       virtual ~BlockStorage() = default;
     };

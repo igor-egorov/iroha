@@ -28,9 +28,7 @@ namespace iroha {
 
       void clear() override;
 
-      void commit() override;
-
-      void forEach(FunctionType function) const override;
+      void commit(FunctionType function) override;
 
      private:
       std::map<shared_model::interface::types::HeightType,

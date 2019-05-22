@@ -180,6 +180,16 @@ void Irohad::dropStorage() {
  * Initializing iroha daemon storage
  */
 Irohad::RunResult Irohad::initStorage() {
+  auto block_store_opt = FlatFile::create(
+      block_store_dir_, log_manager_->getChild("FlatFile")->getLogger());
+  if (not block_store_opt) {
+    return expected::makeError(
+        (boost::format("Cannot create block store in %s") % block_store_dir_)
+            .str());
+  }
+
+  std::shared_ptr<FlatFile> block_store = *std::move(block_store_opt);
+
   common_objects_factory_ =
       std::make_shared<shared_model::proto::ProtoCommonObjectsFactory<
           shared_model::validation::FieldValidator>>(validators_config_);
@@ -188,24 +198,10 @@ Irohad::RunResult Irohad::initStorage() {
   auto block_converter =
       std::make_shared<shared_model::proto::ProtoBlockJsonConverter>();
   auto block_storage_factory = std::make_unique<FlatFileBlockStorageFactory>(
-      []() {
-        return (boost::filesystem::temp_directory_path()
-                / boost::filesystem::unique_path())
-            .string();
-      },
-      block_converter,
-      log_manager_);
-
-  auto block_store = FlatFile::create(
-      block_store_dir_, log_manager_->getChild("FlatFile")->getLogger());
-  if (not block_store) {
-    return expected::makeError(
-        (boost::format("Cannot create block store in %s") % block_store_dir_)
-            .str());
-  }
+      block_store, block_converter, log_manager_);
 
   return StorageImpl::create(
-             std::move(*block_store),
+             std::move(block_store),
              pg_conn_,
              common_objects_factory_,
              std::move(block_converter),

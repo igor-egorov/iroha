@@ -17,7 +17,7 @@ namespace iroha {
     class FlatFileBlockStorage : public BlockStorage {
      public:
       FlatFileBlockStorage(
-          std::unique_ptr<FlatFile> flat_file,
+          std::shared_ptr<KeyValueStorage> block_store,
           std::shared_ptr<shared_model::interface::BlockJsonConverter>
               json_converter,
           logger::LoggerPtr log);
@@ -34,12 +34,10 @@ namespace iroha {
 
       void clear() override;
 
-      void commit() override;
-
-      void forEach(FunctionType function) const override;
+      void commit(FunctionType function) override;
 
      private:
-      std::unique_ptr<FlatFile> flat_file_storage_;
+      std::shared_ptr<KeyValueStorage> block_store_;
       std::shared_ptr<shared_model::interface::BlockJsonConverter>
           json_converter_;
       FlatFile::Identifier height_;

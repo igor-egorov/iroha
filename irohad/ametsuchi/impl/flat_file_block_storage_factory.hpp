@@ -8,6 +8,7 @@
 
 #include "ametsuchi/block_storage_factory.hpp"
 
+#include "ametsuchi/key_value_storage.hpp"
 #include "interfaces/iroha_internal/block_json_converter.hpp"
 #include "logger/logger_manager.hpp"
 
@@ -16,14 +17,14 @@ namespace iroha {
     class FlatFileBlockStorageFactory : public BlockStorageFactory {
      public:
       FlatFileBlockStorageFactory(
-          std::function<std::string()> path_provider,
+          std::shared_ptr<KeyValueStorage> block_store,
           std::shared_ptr<shared_model::interface::BlockJsonConverter>
               json_block_converter,
           logger::LoggerManagerTreePtr log_manager);
       std::unique_ptr<BlockStorage> create() override;
 
      private:
-      std::function<std::string()> path_provider_;
+      std::shared_ptr<KeyValueStorage> block_store_;
       std::shared_ptr<shared_model::interface::BlockJsonConverter>
           json_block_converter_;
       logger::LoggerManagerTreePtr log_manager_;

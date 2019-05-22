@@ -28,6 +28,8 @@ class FlatFileBlockStorageTest : public ::testing::Test {
  protected:
   void SetUp() override {
     create_directory(path_provider_());
+    block_store_ = *FlatFile::create(
+        path_provider_(), log_manager_->getChild("FlatFile")->getLogger());
   }
 
   const std::string block_store_path_ =
@@ -37,6 +39,7 @@ class FlatFileBlockStorageTest : public ::testing::Test {
     return block_store_path_;
   };
 
+  std::shared_ptr<KeyValueStorage> block_store_;
   std::shared_ptr<MockBlockJsonConverter> converter_ =
       std::make_shared<NiceMock<MockBlockJsonConverter>>();
   logger::LoggerManagerTreePtr log_manager_ = getTestLoggerManager();
@@ -51,7 +54,7 @@ class FlatFileBlockStorageTest : public ::testing::Test {
  */
 TEST_F(FlatFileBlockStorageTest, Creation) {
   auto block_storage =
-      FlatFileBlockStorageFactory(path_provider_, converter_, log_manager_)
+      FlatFileBlockStorageFactory(block_store_, converter_, log_manager_)
           .create();
   ASSERT_TRUE(block_storage);
 }
@@ -63,7 +66,7 @@ TEST_F(FlatFileBlockStorageTest, Creation) {
  */
 TEST_F(FlatFileBlockStorageTest, Insert) {
   auto block_storage =
-      FlatFileBlockStorageFactory(path_provider_, converter_, log_manager_)
+      FlatFileBlockStorageFactory(block_store_, converter_, log_manager_)
           .create();
   ASSERT_TRUE(block_storage->insert(block_));
   ASSERT_FALSE(block_storage->insert(block_));
@@ -76,7 +79,7 @@ TEST_F(FlatFileBlockStorageTest, Insert) {
  */
 TEST_F(FlatFileBlockStorageTest, FetchExisting) {
   auto block_storage =
-      FlatFileBlockStorageFactory(path_provider_, converter_, log_manager_)
+      FlatFileBlockStorageFactory(block_store_, converter_, log_manager_)
           .create();
   ASSERT_TRUE(block_storage->insert(block_));
 
@@ -106,7 +109,7 @@ TEST_F(FlatFileBlockStorageTest, FetchExisting) {
  */
 TEST_F(FlatFileBlockStorageTest, FetchNonexistent) {
   auto block_storage =
-      FlatFileBlockStorageFactory(path_provider_, converter_, log_manager_)
+      FlatFileBlockStorageFactory(block_store_, converter_, log_manager_)
           .create();
   auto block_var = block_storage->fetch(height_);
   ASSERT_FALSE(block_var);
@@ -119,7 +122,7 @@ TEST_F(FlatFileBlockStorageTest, FetchNonexistent) {
  */
 TEST_F(FlatFileBlockStorageTest, Size) {
   auto block_storage =
-      FlatFileBlockStorageFactory(path_provider_, converter_, log_manager_)
+      FlatFileBlockStorageFactory(block_store_, converter_, log_manager_)
           .create();
   ASSERT_TRUE(block_storage->insert(block_));
 
@@ -133,7 +136,7 @@ TEST_F(FlatFileBlockStorageTest, Size) {
  */
 TEST_F(FlatFileBlockStorageTest, Clear) {
   auto block_storage =
-      FlatFileBlockStorageFactory(path_provider_, converter_, log_manager_)
+      FlatFileBlockStorageFactory(block_store_, converter_, log_manager_)
           .create();
   ASSERT_TRUE(block_storage->insert(block_));
 
@@ -146,12 +149,13 @@ TEST_F(FlatFileBlockStorageTest, Clear) {
 
 /**
  * @given initialized block storage, single block with height_ inserted
- * @when forEach is called
- * @then block with height_ is visited, lambda is invoked once
+ * @when commit is called
+ * @then block with height_ is visited, lambda is invoked once,
+ * block storage is empty after commit
  */
-TEST_F(FlatFileBlockStorageTest, ForEach) {
+TEST_F(FlatFileBlockStorageTest, Commit) {
   auto block_storage =
-      FlatFileBlockStorageFactory(path_provider_, converter_, log_manager_)
+      FlatFileBlockStorageFactory(block_store_, converter_, log_manager_)
           .create();
   ASSERT_TRUE(block_storage->insert(block_));
 
@@ -171,10 +175,12 @@ TEST_F(FlatFileBlockStorageTest, ForEach) {
 
   size_t count = 0;
 
-  block_storage->forEach([&count, &raw_block](const auto &block) {
+  block_storage->commit([&count, &raw_block](const auto &block) {
     ++count;
     ASSERT_EQ(raw_block, block.get());
   });
 
   ASSERT_EQ(1, count);
+
+  ASSERT_EQ(0, block_storage->size());
 }

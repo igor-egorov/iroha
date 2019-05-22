@@ -43,13 +43,11 @@ namespace {
 
     void clear() override {}
 
-    void commit() override {}
-
     /**
      * Does not iterate any blocks - it is not required to insert any additional
      * blocks to the existing storage
      */
-    void forEach(FunctionType function) const override {}
+    void commit(FunctionType function) override {}
   };
 
   /**

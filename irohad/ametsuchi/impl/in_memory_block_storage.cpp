@@ -32,10 +32,9 @@ void InMemoryBlockStorage::clear() {
   block_store_.clear();
 }
 
-void InMemoryBlockStorage::commit() {}
-
-void InMemoryBlockStorage::forEach(FunctionType function) const {
+void InMemoryBlockStorage::commit(FunctionType function) {
   for (const auto &pair : block_store_) {
     function(pair.second);
   }
+  clear();
 }

@@ -126,8 +126,8 @@ namespace iroha {
       });
     }
 
-    void MutableStorageImpl::commit() {
-      block_storage_->commit();
+    void MutableStorageImpl::commit(BlockStorage::FunctionType function) {
+      block_storage_->commit(function);
       committed = true;
     }
 
